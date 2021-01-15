@@ -6,8 +6,10 @@ import numpy
 import click
 import requests
 import re
+from pick import pick
 
-VIDEO_STORAGE = "videos/"
+VIDEO_STORAGE = "videos"
+PROJECTS_FOLDER = "projects"
 VIDEO_PAGE = "https://www.tommycarstensen.com/terrorism/index.html"
 VIDEO_REGEX = r"\".*\.mp4"
 
@@ -25,19 +27,36 @@ def download_file(url, dl_location):
     else:
         return None
 
+def project_selector():
+    title = 'Please choose your project: '
+    options = [name for name in os.listdir(PROJECTS_FOLDER) if os.path.isdir(os.path.join(PROJECTS_FOLDER, name)) ]
+    option, index = pick(options, title)
+
+    return option
+
 @click.group()
 def cli():
     pass
 
 @cli.command()
-def download_videos():
-    click.echo('Grabbing Videos')
-
+def create_project():
+    project_folder = click.prompt("What would you like to name the Project?")
+    project_path = join(PROJECTS_FOLDER, project_folder)
+    
     try:
-        if not os.path.exists(VIDEO_STORAGE):
-            os.makedirs(VIDEO_STORAGE)
+        if not os.path.exists(PROJECTS_FOLDER):
+            os.makedirs(PROJECTS_FOLDER)
+        if not os.path.exists(project_path):
+            os.makedirs(project_path)
+            os.makedirs(f'{project_path}/videos')
+            os.makedirs(f'{project_path}/faces')
+            os.makedirs(f'{project_path}/people')
     except OSError:
-        print(f'Error: Creating directory of {VIDEO_STORAGE}')
+        print('Error: Creating directory of data')
+
+@cli.command()
+def download_sample_videos():
+    project_folder = project_selector()
 
     r = requests.get(VIDEO_PAGE)
     videos = re.findall(VIDEO_REGEX, r.text)
@@ -45,26 +64,21 @@ def download_videos():
     with click.progressbar(videos, label="Video Download Progress", show_percent=True) as video_bar:
         for video in video_bar:
             url = f"https://www.tommycarstensen.com/terrorism/{video[1:]}"
-            download_file(url, VIDEO_STORAGE)
+            download_file(url, join(PROJECTS_FOLDER, project_folder, VIDEO_STORAGE))
 
 @cli.command()
 def detect_faces():
-    click.echo('Detecting Faces')
+    project_folder = project_selector()
+
     face_front_cascade = cv2.CascadeClassifier('classifiers/haarcascade_frontalface_alt2.xml')
     face_profile_cascade = cv2.CascadeClassifier('classifiers/haarcascade_profileface.xml')
 
-    try:
-        if not os.path.exists('all_frames'):
-            os.makedirs('all_frames')
-    except OSError:
-        print('Error: Creating directory of data')
-
-    video_files = listdir(VIDEO_STORAGE)
+    video_files = listdir(join(PROJECTS_FOLDER, project_folder, VIDEO_STORAGE))
 
     with click.progressbar(video_files, label="Video Files Processing", show_percent=True) as video_files_bar:
         for f in video_files_bar:
-            if isfile(join(VIDEO_STORAGE, f)):
-                vidcap = cv2.VideoCapture(join(VIDEO_STORAGE, f))
+            if isfile(join(PROJECTS_FOLDER, project_folder, VIDEO_STORAGE, f)):
+                vidcap = cv2.VideoCapture(join(PROJECTS_FOLDER, project_folder, VIDEO_STORAGE, f))
 
                 count = 0
 
@@ -89,7 +103,7 @@ def detect_faces():
                             try:
                                 # crop_face = gimg[y-10:y + h+10, x-10:x + w + 10]
                                 crop_face = image[y-10:y + h+10, x-10:x + w + 10]
-                                cv2.imwrite(f"./all_frames/{f}_frame{count}Person{fr}.jpg", crop_face)
+                                cv2.imwrite(f"{join(PROJECTS_FOLDER, project_folder)}/faces/{f}_frame{count}Person{fr}.jpg", crop_face)
                                 fr += 1
                             except:
                                 pass

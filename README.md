@@ -12,6 +12,12 @@ Install the requirements
 pip install -r requirements.txt
 ```
 
+Create Project
+```
+python detector.py create-project
+```
+This will create a project with folders to store videos for processing and face/person storage
+
 (Optional) Download Test videos
 ```
 python detector.py download-videos

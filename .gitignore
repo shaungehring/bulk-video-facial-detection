@@ -1,4 +1,5 @@
 .venv
 .vscode
-all_frames
+projects
 videos
+.DS_Store
